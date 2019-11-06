@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Pinball Editor</title>
+
+    <style>
+        button {
+            margin-bottom: 10px;
+        }
+
+        #inputs {
+            position: absolute;
+            left: 5px;
+            right: 0px;
+            top: 40px;
+            bottom: 0px;
+
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+
+        textarea {
+            width: 100%;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+    </style>
+  </head>
+  <body>
+    <button onclick="Load()">Load</button>
+    <button onclick="Save()">Save</button>
+    <input type="text" id="find">
+    <button onclick="Find(document.getElementById('find').value)">Find next</button>
+    <!--<textarea name="editor" id="editor" cols="30" rows="10" style="position: absolute; left: 0px; top: 20px; width: 100%; bottom: 0px"></textarea>
+    -->
+
+    <div id="inputs">
+        
+    </div>
+
+    <script>
+        const inputsDiv = document.getElementById('inputs');
+
+        let filePath = undefined;
+
+        let binary = undefined;
+        const posToStart = 273352;
+        const posFromEnd = 242;
+
+        let map = [];
+        let inputs = [];
+
+        const { dialog } = require('electron').remote;
+        const fs = require('fs');
+
+        function Load()
+        {
+            dialog.showOpenDialog({ properties: ['openFile'] }).then(result => {
+                if (result.filePaths.length == 0)
+                    return;
+
+                filePath = result.filePaths[0];
+                map = [];
+
+                for (let i in inputs)
+                    inputs[i].remove();
+
+                fs.readFile(filePath, (err, data) => {
+                    if (err) throw err;
+                    binary = data;
+                    console.log(binary.length);
+
+                    let charsLeft = 0;
+                    for (let i = posToStart; i < binary.length - posFromEnd; i++)
+                    {
+                        if ((i - posToStart) % 2 != 0)
+                            continue;
+
+                        if (charsLeft == 0)
+                        {
+                            charsLeft = binary[i];
+                            map.push([]);
+                        }
+                        else
+                        {
+                            map[map.length - 1].push(binary[i]);
+                            charsLeft--;
+                        }
+                    }
+
+                    console.log(map);
+                    
+                    for (let i in map)
+                    {
+                        let input = document.createElement("TEXTAREA");
+                        inputs.push(input);
+
+                        inputsDiv.appendChild(input);
+                        input.addEventListener("keydown", TextareaOnResize);
+                        input.value = "";
+
+                        for (let j in map[i])
+                        {
+                            input.value += String.fromCharCode(map[i][j]);
+                        }
+
+                        input.style.height = 'auto';
+                        input.style.height = input.scrollHeight + 'px';
+                    }
+                });
+            })
+        }
+
+        function TextareaOnResize(e)
+        {
+            setTimeout(() => {
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+            }, 0);
+        }
+
+        let lastFind = "";
+        let lastInputIndex = 0;
+        function Find(value)
+        {
+            if (value.length == 0)
+                return;
+
+            inputsFound = [];
+            for (let i = 0; i < inputs.length; i++)
+            {
+                if (inputs[i].value.toLowerCase().includes(value.toLowerCase()))
+                {
+                    inputsFound.push(inputs[i]);
+                }
+            }
+
+            if (inputsFound.length > 0)
+            {
+                if (lastFind == value)
+                {
+                    lastInputIndex++;
+                    if (lastInputIndex == inputsFound.length)
+                        lastInputIndex = 0;
+
+                    inputsFound[lastInputIndex].focus();
+                    console.log(inputsFound[lastInputIndex]);
+                }
+                else
+                {
+                    lastFind = value;
+                    lastInputIndex = 0;
+                    
+                    inputsFound[lastInputIndex].focus();
+                    console.log(inputsFound[lastInputIndex]);
+                }
+            }
+        }
+
+
+        function Save()
+        {
+            let inputValues = []
+            for (let i = 0; i < inputs.length; i++)
+            {
+                inputValues.push(inputs[i].value);
+            }
+
+            let newBinaryArray = []
+
+            let i = -1;
+            let charsLeft = 0;
+            let charCount = 0;
+            while (true)
+            {
+                if (charsLeft == 0)
+                {
+                    i++;
+                    if (i == inputs.length)
+                        break;
+
+                    charsLeft = inputValues[i].length;
+                    charCount = inputValues[i].length;
+
+                    newBinaryArray.push(charsLeft);
+                }
+                else
+                {
+                    newBinaryArray.push(inputValues[i].charCodeAt(charCount - charsLeft));
+                    charsLeft--;
+                }
+                
+                newBinaryArray.push(0);
+            }
+
+            let slicedBinary = binary.slice(0, posToStart);
+            let zeroArray = [];
+            for (let i = 0; i < posFromEnd; i++) zeroArray.push(0);
+
+            let newBinary = Buffer.concat([slicedBinary, Buffer.from(newBinaryArray), Buffer.from(zeroArray)]);
+
+            console.log("newBinary", newBinary);
+            console.log(newBinary.length);
+
+            fs.writeFile(filePath, newBinary, function(err) {
+                if(err) return console.log(err);
+                console.log("The file was saved!");
+                alert("The file was saved to " + filePath);
+            });
+        }
+    </script>
+  </body>
+</html>

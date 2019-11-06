@@ -1,0 +1,24 @@
+{
+  "name": "pinball-editor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "author": "Teemu Rautavalta",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^7.1.0",
+    "electron-builder": "^22.1.0"
+  },
+  "build": {
+    "appId": "teemu.pinballeditor",
+    "mac": {
+      "category": "teemu.pinballeditor.games.editor"
+    }
+  }
+}
